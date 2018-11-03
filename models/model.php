@@ -4,13 +4,18 @@ require_once "config.php";
 require_once "$SECRETS";
 
 abstract class Model {
+	private static $skip_id = NULL;
 	private $_meta = [ "persisted" => false, "connection" => NULL ];
 	var $id;
 	var $belongs;
 	var $has;
 
-	function __construct($id) {
-		
+	function __construct($id = NULL) {
+		if ($id == Model::$skip_id) return;
+		if ($id < 1) throw new InvalidIdException;
+
+		$this->id = $id;
+		$this->reload();
 	}
 
 	function save() {
@@ -54,7 +59,22 @@ abstract class Model {
 	}
 
 	function reload() {
+		if ($this->id == Model::$skip_id || $this->id < 1) throw new InvalidIdException;
 
+		$stmt = "SELECT * FROM " . $this->table_name() . " where id=:id";
+		$sth = $this->connection()->prepare($stmt);
+		$sth->bindValue("id", $this->id);
+		$sth->execute();
+
+		$class_name = get_class($this);
+		$res = $sth->fetchObject($class_name, array(Model::$skip_id));
+		if ($res === false) throw new RecordNotFoundException("Couldn't find $class_name with ID $this->id");
+
+		foreach (get_object_vars($res) as $key => $value) {
+			if ($key == "_meta") continue;
+			$this->$key = $value;
+		}
+		$this->_meta["persisted"] = true;
 	}
 
 	private function connection() {
@@ -88,5 +108,7 @@ abstract class Model {
 }
 
 class RecordNotPersistedException extends Exception { }
+class RecordNotFoundException extends Exception { }
+class InvalidIdException extends Exception { }
 
 ?>
