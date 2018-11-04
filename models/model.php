@@ -213,25 +213,32 @@ abstract class Model {
 		throw new BadMethodCallException("No association $name found for $current_class");
 	}
 
-	private function connection() {
-		// assumed to be present in secrets, included by entry require
-		global $HOST, $DATABASE, $USERNAME, $PASSWORD;
 
+	private function connection() {
 		// rudimentary connection storage - docs make it unclear if this is
-		// actually a good idea, but connections should be short lived anyway
+		// actually a good idea, but connections should be short lived anyway.
+		// One connection per model instance is required by the current save()
+		// implementation, at least for non-persisted objects.
 		if ($this->_meta["connection"]) return $this->_meta["connection"];
 
-		try {
-			$this->_meta["connection"] = new PDO("mysql:host=$HOST;dbname=$DATABASE", $USERNAME, $PASSWORD);
-			return $this->_meta["connection"];
-		} catch (PDOException $e) {
-			echo "Failed to get DB connection " . $e->getMessage();
-			die();
-		}
+		$this->_meta["connection"] = Model::connect();
+		return $this->_meta["connection"];
 	}
 
 	private function table_name() {
 		return Model::databasify(get_class($this));
+	}
+
+	private static function connect() {
+		// assumed to be present in secrets, included by entry require
+		global $HOST, $DATABASE, $USERNAME, $PASSWORD;
+
+		try {
+			return new PDO("mysql:host=$HOST;dbname=$DATABASE", $USERNAME, $PASSWORD);
+		} catch (PDOException $e) {
+			echo "Failed to get DB connection " . $e->getMessage();
+			die();
+		}
 	}
 
 	private static function databasify($string) {
