@@ -77,6 +77,49 @@ abstract class Model {
 		$this->_meta["persisted"] = true;
 	}
 
+	function __call($name, $args) {
+		if (count($args)) throw new BadMethodCallException("Association methods accept no arguments");
+		$class_name = ucfirst($name);
+		$table_name = Model::databasify($class_name);
+
+		$belong_key = false;
+		if ($this->belongs !== NULL)
+			$belong_key = array_search($class_name, $this->belongs);
+
+		if ($belong_key !== false) {
+			$association_col = $table_name . "_id";
+			return new $class_name($this->$association_col);
+		} else {
+			if ($this->has === NULL) throw new BadMethodCallException("No has association defined, belongs association exhausted");
+
+			$has_key = array_search($class_name, $this->has);
+			if ($has_key === false) {
+				$class_name = substr($class_name, 0, -1);
+				$has_key = array_search($class_name, $this->has);
+				$table_name = Model::databasify($class_name);
+			}
+
+			if ($has_key !== false) {
+				$association_col = $this->table_name() . "_id";
+				$stmt = "SELECT id FROM $table_name where $association_col = :id";
+				$sth = $this->connection()->prepare($stmt);
+				$sth->bindValue("id", $this->id);
+				$sth->execute();
+				$ids = $sth->fetchAll();
+				$sth->closeCursor();
+
+				$result_set = array();
+				foreach ($ids as $row) {
+					$result_set[] = new $class_name($row["id"]);
+				}
+				return $result_set;
+			}
+		}
+
+		$current_class = get_class($this);
+		throw new BadMethodCallException("No association $name found for $current_class");
+	}
+
 	private function connection() {
 		global $HOST, $DATABASE, $USERNAME, $PASSWORD;
 
@@ -100,11 +143,6 @@ abstract class Model {
 		$string = preg_replace(["~_{2,}~", "~[^\w_]+~"], ["_", ""], str_replace("-", "_", $string));
 		return $string;
 	}
-
-/*	function __call($name, $args) {
-		// for assocations
-	}
- */
 }
 
 class RecordNotPersistedException extends Exception { }
