@@ -1,8 +1,5 @@
 <?php
 
-require_once "config.php";
-require_once "$SECRETS";
-
 abstract class Model {
 	private static $skip_id = NULL;
 	private $_meta = [ "persisted" => false, "connection" => NULL ];
