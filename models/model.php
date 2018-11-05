@@ -52,6 +52,7 @@ abstract class Model {
 	 * will be populated with the value assigned by the DB.
 	 * If the model is persisted, it will instead be updated with the current
 	 * variable values.
+	 * Calls the validate() and pre_save() hooks before operation.
 	 *
 	 * Does not currently re-wrap DB level errors.
 	 *
@@ -61,8 +62,12 @@ abstract class Model {
 	 *                                     persisted record or the DB reports
 	 *                                     that no rows changed.
 	 * @throws PDOException DB level errors.
+	 * @throws InvalidModelException If validation fails.
 	 */
 	function save() {
+		$this->validate();
+		$this->pre_save();
+
 		$table = $this->table_name();
 		$vars = get_object_vars($this);
 		// prevent metadata/association variables from being written to the DB
@@ -209,6 +214,35 @@ abstract class Model {
 		// fell-through all checks - no relevant belongs or has
 		$current_class = get_class($this);
 		throw new BadMethodCallException("No association $name found for $current_class");
+	}
+
+	/**
+	 * Allows a model to hook in an action before being saved.
+	 *
+	 * This will be called BEFORE any save actions, including statement
+	 * generation. As such, any variables added or updated WILL be persisted.
+	 * This will be called BEFORE validations. That is, if the pre-save hook
+	 * results in invalid data, save() WILL raise an InvalidModelException.
+	 *
+	 * @see validate(), save()
+	 */
+	function pre_save() {
+	}
+
+	/**
+	 * Allows a model to hook in validation of its state.
+	 *
+	 * This will be called immediately BEFORE the pre_save() hook.
+	 * Allows a model to validate its own state, such as checking that enum
+	 * values are within permitted values, or that specific variables are in the
+	 * right range or type of values.
+	 * Validate MAY perform corrections of the model's state.
+	 *
+	 * @throws InvalidModelException If the model's state is invalid.
+	 *
+	 * @see pre_save(), save()
+	 */
+	function validate() {
 	}
 
 	/**
