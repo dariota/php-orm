@@ -2,6 +2,7 @@
 namespace recipe\orm;
 
 require_once F_ROOT . '/exceptions/db.php';
+require_once F_ROOT . '/utility/utils.php';
 
 class Query {
 	private $class_name;
@@ -33,6 +34,62 @@ class Query {
 		$this->connection = $connection;
 		$this->condition = Query::construct_where($args, true);
 		$this->condition_params = $args;
+	}
+
+	/**
+	 * Sets the limit of records that can be returned by find().
+	 *
+	 * @param int $limit The max number of records to be returned, set to 0 for
+	 *                   no limit, default 1.
+	 *
+	 * @return object $this for function chaining.
+	 *
+	 * @throws InvalidArgumentException If $limit is negative or non-int.
+	 */
+	function limit($limit = 1) {
+		if (!castable_int($limit))
+			throw new InvalidArgumentException("limit must be non-negative int");
+
+		$this->limit_count = $limit;
+		return $this;
+	}
+
+	/**
+	 * Retrieves the first $this->limit records matching the query described.
+	 *
+	 * @return mixed The retrieved record or array of records depending on
+	 *               $this->limit.
+	 *
+	 * @throws RecordNotFoundException If no matching record is found and limit
+	 *                                 is 1.
+	 */
+	function find() {
+		// mostly just wrap PDO::fetchObject with some sql generation
+		$stmt = "SELECT * FROM $this->table";
+
+		if (strlen($this->condition))
+			$stmt .= " WHERE $this->condition";
+
+		if ($this->limit_count)
+			$stmt .= " LIMIT $this->limit_count";
+
+		$sth = $this->connection->prepare($stmt);
+		$sth->execute($this->condition_params);
+
+		if ($this->limit_count == 1) {
+			$res = $sth->fetchObject($this->class_name,
+			                         array(Model::$skip_id, true));
+			$sth->closeCursor();
+			if ($res === false)
+				throw new RecordNotFoundException;
+
+			return $res;
+		} else {
+			$results = $sth->fetchAll(\PDO::FETCH_CLASS, $this->class_name,
+			                          array(Model::$skip_id, true));
+			$sth->closeCursor();
+			return $results;
+		}
 	}
 
 	private static function construct_where($args, $conjuction) {

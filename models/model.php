@@ -11,7 +11,8 @@ require_once 'query.php';
  * to retrieve associated models, and a create/update method.
  */
 abstract class Model {
-	private static $skip_id = NULL;
+	static $skip_id = NULL;
+
 	private $_meta = [ "persisted" => false, "connection" => NULL ];
 	var $id;
 	var $belongs;
