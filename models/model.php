@@ -78,7 +78,8 @@ abstract class Model {
 
 			// prevent choosing a primary key, which are assumed to auto-
 			// increment
-		} else if ($vars["id"]) throw new RecordNotPersistedException("ID provided for non-persisted record");
+		} else if ($vars["id"])
+			throw new RecordNotPersistedException("ID provided for non-persisted record");
 
 		$stmt = "$verb $table SET ";
 		$first = true;
@@ -125,18 +126,12 @@ abstract class Model {
 	function reload() {
 		// this condition is also guarded by the constructor, but ID could have
 		// been modified in the meantime
-		if ($this->id == Model::$skip_id || $this->id < 1) throw new InvalidIdException;
+		if ($this->id == Model::$skip_id || $this->id < 1)
+			throw new InvalidIdException;
 
-		// mostly just wrap PDO::fetchObject with some sql generation, but also
-		// overwriting an existing object instead of creating a new one
-		$stmt = "SELECT * FROM " . $this->table_name() . " where id=:id";
-		$sth = $this->connection()->prepare($stmt);
-		$sth->bindValue("id", $this->id);
-		$sth->execute();
-
-		$class_name = get_class($this);
-		$res = $sth->fetchObject($class_name, array(Model::$skip_id, true));
-		if ($res === false) throw new RecordNotFoundException("Couldn't find $class_name with ID $this->id");
+		$query = new Query(get_class($this), $this->table_name(),
+		                   [ "id" => $this->id ], Model::connect());
+		$res = $query->find();
 
 		foreach (get_object_vars($res) as $key => $value) {
 			if ($key == "_meta") continue;
@@ -170,7 +165,8 @@ abstract class Model {
 	 */
 	function __call($name, $args) {
 		// broadly handle improper calls, since associations never take args
-		if (count($args)) throw new BadMethodCallException("Association methods accept no arguments");
+		if (count($args))
+			throw new BadMethodCallException("Association methods accept no arguments");
 
 		// uppercase the method to get the presumed class name (e.g. books ->
 		// Books, author -> Author)
@@ -189,7 +185,8 @@ abstract class Model {
 			$association_col = $table_name . "_id";
 			return new $class_name($this->$association_col);
 		} else {
-			if ($this->has === NULL) throw new BadMethodCallException("No has association defined, belongs association exhausted");
+			if ($this->has === NULL)
+				throw new BadMethodCallException("No has association defined, belongs association exhausted");
 
 			$has_key = array_search($class_name, $this->has);
 			if ($has_key === false) {
@@ -201,15 +198,11 @@ abstract class Model {
 			}
 
 			if ($has_key !== false) {
-				// fetch the associated records
 				$association_col = $this->table_name() . "_id";
-				$stmt = "SELECT * FROM $table_name where $association_col = :id";
-				$sth = $this->connection()->prepare($stmt);
-				$sth->bindValue("id", $this->id);
-				$sth->execute();
-				$results = $sth->fetchAll(\PDO::FETCH_CLASS, $class_name, array(Model::$skip_id, true));
-				$sth->closeCursor();
-				return $results;
+				$query = new Query($class_name, $table_name,
+				                   [ $association_col => $this->id ],
+				                   Model::connect());
+				return $query->limit(0)->find();
 			}
 		}
 
@@ -262,7 +255,8 @@ abstract class Model {
 		global $HOST, $DATABASE, $USERNAME, $PASSWORD;
 
 		try {
-			return new \PDO("mysql:host=$HOST;dbname=$DATABASE", $USERNAME, $PASSWORD);
+			return new \PDO("mysql:host=$HOST;dbname=$DATABASE", $USERNAME,
+			                $PASSWORD);
 		} catch (\PDOException $e) {
 			echo "Failed to get DB connection " . $e->getMessage();
 			die();
