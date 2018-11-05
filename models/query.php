@@ -7,6 +7,7 @@ require_once F_ROOT . '/utility/utils.php';
 class Query {
 	private $class_name;
 	private $table;
+	private $connector;
 	private $connection;
 	private $condition;
 	private $condition_params;
@@ -23,15 +24,16 @@ class Query {
 	 *                           to.
 	 * @param string $table_name The name of the table to query.
 	 * @param array $args The conditions to use [ "column" => "expected value"].
-	 * @param object $connection A PDO connection.
+	 * @param object $connector A callable, taking no arguments, returning a PDO
+	 *                          connection.
 	 *
 	 * @throws InvalidArgumentException If param types are wrong, or args
 	 *                                  array has non-string keys.
 	 */
-	function __construct($class_name, $table_name, $args, $connection) {
+	function __construct($class_name, $table_name, $args, $connector) {
 		$this->class_name = $class_name;
 		$this->table = $table_name;
-		$this->connection = $connection;
+		$this->connector = $connector;
 		$this->condition = Query::construct_where($args, true);
 		$this->condition_params = $args;
 	}
@@ -73,7 +75,7 @@ class Query {
 		if ($this->limit_count)
 			$stmt .= " LIMIT $this->limit_count";
 
-		$sth = $this->connection->prepare($stmt);
+		$sth = $this->connection()->prepare($stmt);
 		$sth->execute($this->condition_params);
 
 		if ($this->limit_count == 1) {
@@ -90,6 +92,14 @@ class Query {
 			$sth->closeCursor();
 			return $results;
 		}
+	}
+
+	private function connection() {
+		if ($this->connection)
+			return $this->connection;
+
+		$this->connection = call_user_func($this->connector);
+		return $this->connection;
 	}
 
 	private static function construct_where($args, $conjuction) {

@@ -135,7 +135,7 @@ abstract class Model {
 			throw new InvalidIdException;
 
 		$query = new Query(get_class($this), $this->table_name(),
-		                   [ "id" => $this->id ], Model::connect());
+		                   [ "id" => $this->id ], Model::connector());
 		$res = $query->find();
 
 		foreach (get_object_vars($res) as $key => $value) {
@@ -206,7 +206,7 @@ abstract class Model {
 				$association_col = $this->table_name() . "_id";
 				$query = new Query($class_name, $table_name,
 				                   [ $association_col => $this->id ],
-				                   Model::connect());
+				                   Model::connector());
 				return $query->limit(0)->find();
 			}
 		}
@@ -266,7 +266,7 @@ abstract class Model {
 			throw new InvalidArgumentException("where must be called on a subclass of Model");
 
 		return new Query($class_name, Model::databasify($class_name), $args,
-		                 Model::connect());
+		                 Model::connector());
 	}
 
 	private function connection() {
@@ -282,6 +282,12 @@ abstract class Model {
 
 	private function table_name() {
 		return Model::databasify(get_class($this));
+	}
+
+	private static function connector() {
+		return function() {
+			return Model::connect();
+		};
 	}
 
 	private static function connect() {
