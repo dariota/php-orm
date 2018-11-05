@@ -2,6 +2,7 @@
 namespace recipe\orm;
 
 require_once F_ROOT . '/exceptions/db.php';
+require_once 'query.php';
 
 /**
  * Provides a DB model through inheritance.
@@ -216,6 +217,29 @@ abstract class Model {
 		throw new BadMethodCallException("No association $name found for $current_class");
 	}
 
+	/**
+	 * Creates a Query for the given table, using $args for the where clause.
+	 *
+	 * @param array $args An associative array describing the conditions
+	 *                    desired, such as [ "id" => 2, "name" => "Me" ]
+	 *
+	 * @return object A query object, initialised with the arguments passed
+	 *
+	 * @throws InvalidArgumentException If args is not an array, or the called
+	 *                                  class is Model.
+	 *
+	 * @see Query
+	 */
+	static function where($args) {
+		$class_name = get_called_class();
+		if (!is_array($args))
+			throw new InvalidArgumentException("where args is not an array");
+		if ($class_name == "Model")
+			throw new InvalidArgumentException("where must be called on a subclass of Model");
+
+		return new Query($class_name, Model::databasify($class_name), $args,
+		                 Model::connect());
+	}
 
 	private function connection() {
 		// rudimentary connection storage - docs make it unclear if this is
