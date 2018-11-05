@@ -1,4 +1,7 @@
 <?php
+namespace recipe\orm;
+
+require_once F_ROOT . '/exceptions/db.php';
 
 /**
  * Provides a DB model through inheritance.
@@ -202,7 +205,7 @@ abstract class Model {
 				$sth = $this->connection()->prepare($stmt);
 				$sth->bindValue("id", $this->id);
 				$sth->execute();
-				$results = $sth->fetchAll(PDO::FETCH_CLASS, $class_name, array(Model::$skip_id, true));
+				$results = $sth->fetchAll(\PDO::FETCH_CLASS, $class_name, array(Model::$skip_id, true));
 				$sth->closeCursor();
 				return $results;
 			}
@@ -234,8 +237,8 @@ abstract class Model {
 		global $HOST, $DATABASE, $USERNAME, $PASSWORD;
 
 		try {
-			return new PDO("mysql:host=$HOST;dbname=$DATABASE", $USERNAME, $PASSWORD);
-		} catch (PDOException $e) {
+			return new \PDO("mysql:host=$HOST;dbname=$DATABASE", $USERNAME, $PASSWORD);
+		} catch (\PDOException $e) {
 			echo "Failed to get DB connection " . $e->getMessage();
 			die();
 		}
@@ -252,9 +255,5 @@ abstract class Model {
 		return $string;
 	}
 }
-
-class RecordNotPersistedException extends Exception { }
-class RecordNotFoundException extends Exception { }
-class InvalidIdException extends Exception { }
 
 ?>

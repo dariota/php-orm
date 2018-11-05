@@ -6,7 +6,10 @@
  * $DATABASE, which allow connection to a mysql DB.
  */
 
-require_once "models/model.php";
+namespace recipe\orm;
+
+define("F_ROOT", dirname(__FILE__));
+require_once F_ROOT . "/models/model.php";
 require_once "../config.php";
 require_once "$SECRETS";
 
