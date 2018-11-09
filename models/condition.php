@@ -120,6 +120,9 @@ function all() {
  *                                   string, that feels like a bad idea)
  */
 function not($condition) {
+	guard_junction([$condition], "not");
+
+	return new Condition(null, Condition::T_BOOL, Condition::K_NOT, [$condition]);
 }
 
 /**
@@ -142,14 +145,15 @@ function guard_junction($conditions, $func_name) {
 }
 
 class Condition {
+	const K_ALL = "k_all";
+	const K_ANY = "k_any";
 	const K_COL = "k_column";
 	const K_CONST = "k_const";
-	const K_ANY = "k_any";
-	const K_ALL = "k_all";
+	const K_NOT = "k_not";
 
+	const T_BOOL = "t_bool";
 	const T_COL = "t_column";
 	const T_INT = "t_int";
-	const T_BOOL = "t_bool";
 	const T_STR = "t_str";
 
 	private $kind;
