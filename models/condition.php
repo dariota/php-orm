@@ -1,6 +1,9 @@
 <?php
 
 namespace recipe\orm\condition;
+use recipe\orm as orm;
+
+require_once F_ROOT . '/exceptions/validation.php';
 
 /**
  * Creates a condition based on the value of the named column.
@@ -17,6 +20,10 @@ namespace recipe\orm\condition;
  * @throws InvalidArgumentException If $name is not a string.
  */
 function column($name) {
+	if (!is_string($name))
+		throw new orm\InvalidArgumentException("Column name must be string");
+
+	return new Condition($name, Condition::T_COL, Condition::K_COL);
 }
 
 /**
@@ -92,6 +99,35 @@ function not($condition) {
 }
 
 class Condition {
+	const K_COL = "k_column";
+
+	const T_COL = "t_column";
+
+	private $kind;
+	private $type;
+	private $value;
+	private $children;
+
+	/**
+	 * Constructs a Condition with the passed values.
+	 *
+	 * Performs only minimal validation and should not be used externally.
+	 *
+	 * @throws InvalidArgumentException If $children is not an array or contains
+	 *                                  non-conditions.
+	 */
+	function __construct($value, $type, $kind, $children = []) {
+		if (!is_array($children))
+			throw new orm\InvalidArgumentException("Children must be an array");
+		$this->value = $value;
+		$this->type = $type;
+		$this->kind = $kind;
+		$this->children = [];
+
+		foreach ($children as $child) {
+			$this->add_child($child);
+		}
+	}
 
 	/**
 	 * True if the string value of $this contains $str anywhere.
@@ -298,6 +334,15 @@ class Condition {
 	function bit_and($mask) {
 	}
 
+	private function add_child($child) {
+		if (is_a($child, "recipe\\orm\\condition\\Condition")) {
+			array_push($this->children, $child);
+		} else {
+			throw new orm\InvalidArgumentException("Non-condition added as child of Condition");
+		}
+	}
 }
+
+class InvalidConditionException extends \Exception { }
 
 ?>
