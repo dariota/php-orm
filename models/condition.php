@@ -40,6 +40,15 @@ function column($name) {
  * @throws InvalidArgumentException If $name is not a string, int or boolean.
  */
 function value($value) {
+	if (orm\castable_int($value)) {
+		return new Condition($value, Condition::T_INT, Condition::K_CONST);
+	} else if (is_bool($value)) {
+		return new Condition($value, Condition::T_BOOL, Condition::K_CONST);
+	} else if (is_string($value)) {
+		return new Condition($value, Condition::T_STR, Condition::K_CONST);
+	}
+
+	throw new orm\InvalidArgumentException("Value was not int, bool or string");
 }
 
 /**
@@ -100,8 +109,12 @@ function not($condition) {
 
 class Condition {
 	const K_COL = "k_column";
+	const K_CONST = "k_const";
 
 	const T_COL = "t_column";
+	const T_INT = "t_int";
+	const T_BOOL = "t_bool";
+	const T_STR = "t_str";
 
 	private $kind;
 	private $type;
