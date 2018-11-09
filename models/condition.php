@@ -149,6 +149,7 @@ class Condition {
 	const K_ANY = "k_any";
 	const K_COL = "k_column";
 	const K_CONST = "k_const";
+	const K_CONTAINS = "k_cont";
 	const K_NOT = "k_not";
 
 	const T_BOOL = "t_bool";
@@ -188,17 +189,17 @@ class Condition {
 	 * Escapes control characters such as \, % and _.
 	 * Comparison is case-insensitive.
 	 *
-	 * @param mixed $str Either a string, or a string valued Condition object.
+	 * @param string $str The string to search for.
 	 *
 	 * @return A Condition object which is true if the column or value referred
 	 *         to contains $str anywhere.
 	 *
-	 * @throws InvalidArgumentException If $str is neither a string or string-
-	 *                                  typed Condition.
+	 * @throws InvalidArgumentException If $str is not a string.
 	 * @throws InvalidConditionException If $this is not a string-typed
 	 *                                   Condition.
 	 */
 	function contains($str) {
+		return $this->string_condition("contains", $str, "%", "%");
 	}
 
 	/**
@@ -218,6 +219,7 @@ class Condition {
 	 *                                   Condition.
 	 */
 	function starts_with($str) {
+		return $this->string_condition("starts_with", $str, "", "%");
 	}
 
 	/**
@@ -237,6 +239,7 @@ class Condition {
 	 *                                   Condition.
 	 */
 	function ends_with($str) {
+		return $this->string_condition("ends_with", $str, "%", "");
 	}
 
 	/**
@@ -391,12 +394,49 @@ class Condition {
 		return $this->type;
 	}
 
+	private function string_condition($func_name, $str, $before, $after) {
+		if (!is_string($str))
+			throw new orm\InvalidArgumentException("Non-string passed to $func_name()");
+		$this->assert_inhabits(Condition::T_STR);
+
+		$escaped = Condition::escape_str_control($str);
+
+		$str_check = new Condition($before . $escaped . $after,
+		                           Condition::T_STR, Condition::K_CONST);
+		$result = new Condition(null, Condition::T_BOOL, Condition::K_CONTAINS,
+		                        [$this, $str_check]);
+
+		return $result;
+	}
+
 	private function add_child($child) {
 		if (is_a($child, "recipe\\orm\\condition\\Condition")) {
 			array_push($this->children, $child);
 		} else {
 			throw new orm\InvalidArgumentException("Non-condition added as child of Condition");
 		}
+	}
+
+	private function assert_inhabits($type) {
+		// a column can be any type
+		if ($this->type == Condition::T_COL)
+			return true;
+
+		// a strict match is obviously fine
+		if ($this->type == $type)
+			return true;
+
+		// integers can often be reasonably used as booleans
+		if ($type == Condition::T_BOOL && $this->type == Condition::T_INT)
+			return true;
+
+		return false;
+	}
+
+	private static function escape_str_control($str) {
+		return str_replace("_", "\\_",
+		         str_replace("%", "\\%",
+		           str_replace("\\", "\\\\", $str)));
 	}
 }
 
