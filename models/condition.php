@@ -68,6 +68,13 @@ function value($value) {
  *                                   integral.
  */
 function any() {
+	if (!func_num_args())
+		throw new orm\InvalidArgumentException("Nothing passed to any()");
+
+	$conditions = func_get_args();
+	guard_junction($conditions, "any");
+
+	return new Condition(null, CONDITION::T_BOOL, Condition::K_ANY, $conditions);
 }
 
 /**
@@ -87,6 +94,13 @@ function any() {
  *                                   integral.
  */
 function all() {
+	if (!func_num_args())
+		throw new orm\InvalidArgumentException("Nothing passed to all()");
+
+	$conditions = func_get_args();
+	guard_junction($conditions, "all");
+
+	return new Condition(null, CONDITION::T_BOOL, Condition::K_ALL, $conditions);
 }
 
 /**
@@ -102,14 +116,36 @@ function all() {
  * @throws InvalidArgumentException If anything other than a condition object
  *                                  is passed.
  * @throws InvalidConditionException If the passed condition is not boolean or
- *                                   integral.
+ *                                   integral. (while mysql would accept a
+ *                                   string, that feels like a bad idea)
  */
 function not($condition) {
+}
+
+/**
+ * Internal helper function.
+ */
+function guard_junction($conditions, $func_name) {
+	foreach ($conditions as $condition) {
+		if (!is_a($condition, "recipe\\orm\\condition\\Condition"))
+			throw new orm\InvalidArgumentException("Non-condition passed to $func_name()");
+
+		switch ($condition->get_type()) {
+		case Condition::T_INT:
+		case Condition::T_BOOL:
+		case Condition::T_COL:
+			break;
+		default:
+			throw new InvalidConditionException("Non-int or bool condition passed to $func_name()");
+		}
+	}
 }
 
 class Condition {
 	const K_COL = "k_column";
 	const K_CONST = "k_const";
+	const K_ANY = "k_any";
+	const K_ALL = "k_all";
 
 	const T_COL = "t_column";
 	const T_INT = "t_int";
@@ -345,6 +381,10 @@ class Condition {
 	 *                                  Condition object.
 	 */
 	function bit_and($mask) {
+	}
+
+	function get_type() {
+		return $this->type;
 	}
 
 	private function add_child($child) {
