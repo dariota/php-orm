@@ -155,6 +155,7 @@ class Condition {
 	const K_GT = "k_gt";
 	const K_LE = "k_le";
 	const K_LT = "k_lt";
+	const K_IN = "k_in";
 	const K_NEQ = "k_neq";
 	const K_NOT = "k_not";
 	const K_NULL = "k_null";
@@ -402,6 +403,20 @@ class Condition {
 	 *                                   similar to any of the elements' types.
 	 */
 	function in($set) {
+		if (!(is_array($set) && count($set)))
+			throw new orm\InvalidArgumentException("Value passed to in() is not non-empty array");
+
+		$children = [$this];
+		foreach ($set as $item) {
+			if (Condition::is_instance($item) && $item->kind != K_CONST)
+				throw new InvalidArgumentException("in() does not accept Condition arguments");
+			$type = Condition::determine_type($item);
+			$this->assert_inhabits($type);
+			$children[] = value($item);
+		}
+
+		return new Condition(null, Condition::T_BOOL, Condition::K_IN,
+		                     $children);
 	}
 
 	/**
