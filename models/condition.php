@@ -150,6 +150,12 @@ class Condition {
 	const K_COL = "k_column";
 	const K_CONST = "k_const";
 	const K_CONTAINS = "k_cont";
+	const K_EQ = "k_eq";
+	const K_GE = "k_ge";
+	const K_GT = "k_gt";
+	const K_LE = "k_le";
+	const K_LT = "k_lt";
+	const K_NEQ = "k_neq";
 	const K_NOT = "k_not";
 	const K_NULL = "k_null";
 
@@ -263,10 +269,13 @@ class Condition {
 	 * @return A Condition object which is true if the column or value referred
 	 *         to is equal to $value.
 	 *
-	 * @throws InvalidArgumentException If $str is not a string, boolean, or
+	 * @throws InvalidArgumentException If $value is not a string, boolean, or
 	 *                                  integral constant or Condition object.
+	 * @throws InvalidConditionException If the type of $value doesn't
+	 *                                   sufficiently match $this' type.
 	 */
 	function eq($value) {
+		return $this->comparison_condition($value, Condition::K_EQ);
 	}
 
 	/**
@@ -278,10 +287,13 @@ class Condition {
 	 * @return A Condition object which is true if the column or value referred
 	 *         to is not equal to $value.
 	 *
-	 * @throws InvalidArgumentException If $str is not a string, boolean, or
+	 * @throws InvalidArgumentException If $value is not a string, boolean, or
 	 *                                  integral constant or Condition object.
+	 * @throws InvalidConditionException If the type of $value doesn't
+	 *                                   sufficiently match $this' type.
 	 */
 	function neq($value) {
+		return $this->comparison_condition($value, Condition::K_NEQ);
 	}
 
 	/**
@@ -297,10 +309,13 @@ class Condition {
 	 * @return A Condition object which is true if the column or value referred
 	 *         to is less than $value.
 	 *
-	 * @throws InvalidArgumentException If $str is not a string, boolean, or
+	 * @throws InvalidArgumentException If $value is not a string, boolean, or
 	 *                                  integral constant or Condition object.
+	 * @throws InvalidConditionException If the type of $value doesn't
+	 *                                   sufficiently match $this' type.
 	 */
 	function lt($value) {
+		return $this->comparison_condition($value, Condition::K_LT);
 	}
 
 	/**
@@ -316,10 +331,13 @@ class Condition {
 	 * @return A Condition object which is true if the column or value referred
 	 *         to is less than or equal to $value.
 	 *
-	 * @throws InvalidArgumentException If $str is not a string, boolean, or
+	 * @throws InvalidArgumentException If $value is not a string, boolean, or
 	 *                                  integral constant or Condition object.
+	 * @throws InvalidConditionException If the type of $value doesn't
+	 *                                   sufficiently match $this' type.
 	 */
 	function le($value) {
+		return $this->comparison_condition($value, Condition::K_LE);
 	}
 
 	/**
@@ -335,10 +353,13 @@ class Condition {
 	 * @return A Condition object which is true if the column or value referred
 	 *         to is greater than $value.
 	 *
-	 * @throws InvalidArgumentException If $str is not a string, boolean, or
+	 * @throws InvalidArgumentException If $value is not a string, boolean, or
 	 *                                  integral constant or Condition object.
+	 * @throws InvalidConditionException If the type of $value doesn't
+	 *                                   sufficiently match $this' type.
 	 */
 	function gt($value) {
+		return $this->comparison_condition($value, Condition::K_GT);
 	}
 
 	/**
@@ -354,10 +375,13 @@ class Condition {
 	 * @return A Condition object which is true if the column or value referred
 	 *         to is greater than or equal to $value.
 	 *
-	 * @throws InvalidArgumentException If $str is not a string, boolean, or
+	 * @throws InvalidArgumentException If $value is not a string, boolean, or
 	 *                                  integral constant or Condition object.
+	 * @throws InvalidConditionException If the type of $value doesn't
+	 *                                   sufficiently match $this' type.
 	 */
 	function ge($value) {
+		return $this->comparison_condition($value, Condition::K_GE);
 	}
 
 	/**
@@ -397,6 +421,17 @@ class Condition {
 		return $this->type;
 	}
 
+	private function comparison_condition($value, $kind) {
+		$type = Condition::determine_type($value);
+		$this->assert_inhabits($type);
+
+		if (!is_a($value, "recipe\\orm\\condition\\Condition")) {
+			$value = new Condition($value, $type, Condition::K_CONST);
+		}
+		return new Condition(null, Condition::T_BOOL, $kind,
+		                     [$this, $value]);
+	}
+
 	private function string_condition($func_name, $str, $before, $after) {
 		if (!is_string($str))
 			throw new orm\InvalidArgumentException("Non-string passed to $func_name()");
@@ -422,18 +457,35 @@ class Condition {
 
 	private function assert_inhabits($type) {
 		// a column can be any type
-		if ($this->type == Condition::T_COL)
-			return true;
+		if ($this->type == Condition::T_COL || $type == Condition::T_COL)
+			return;
 
 		// a strict match is obviously fine
 		if ($this->type == $type)
-			return true;
+			return;
 
 		// integers can often be reasonably used as booleans
 		if ($type == Condition::T_BOOL && $this->type == Condition::T_INT)
-			return true;
+			return;
 
-		return false;
+		throw new InvalidConditionException("Condition is not $type typed");
+	}
+
+	private static function determine_type($value) {
+		if (is_a($value, "recipe\\orm\\condition\\Condition")) {
+			return $value->get_type();
+		} else {
+			if (orm\castable_int($value)) {
+				$type = Condition::T_INT;
+			} else if (is_bool($value)) {
+				$type = Condition::T_BOOL;
+			} else if (is_string($value)) {
+				$type = Condition::T_STR;
+			} else {
+				throw new orm\InvalidArgumentException("Non-int, bool or string value passed");
+			}
+			return $type;
+		}
 	}
 
 	private static function escape_str_control($str) {
