@@ -151,6 +151,7 @@ class Condition {
 	const K_CONST = "k_const";
 	const K_CONTAINS = "k_cont";
 	const K_NOT = "k_not";
+	const K_NULL = "k_null";
 
 	const T_BOOL = "t_bool";
 	const T_COL = "t_column";
@@ -249,6 +250,8 @@ class Condition {
 	 *         to is null.
 	 */
 	function null_value() {
+		return new Condition(null, Condition::T_BOOL, Condition::K_NULL,
+		                     [$this]);
 	}
 
 	/**
