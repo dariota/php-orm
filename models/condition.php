@@ -147,6 +147,7 @@ function guard_junction($conditions, $func_name) {
 class Condition {
 	const K_ALL = "k_all";
 	const K_ANY = "k_any";
+	const K_AND = "k_bitand";
 	const K_COL = "k_column";
 	const K_CONST = "k_const";
 	const K_CONTAINS = "k_cont";
@@ -426,10 +427,22 @@ class Condition {
 	 *
 	 * @return A Condition object of integral type representing the result.
 	 *
-	 * @throws InvalidArgumentException If $str is not an integral constant or
+	 * @throws InvalidArgumentException If $mask is not an integral constant or
 	 *                                  Condition object.
+	 * @throws InvalidConditionException If $this is not of integral type.
 	 */
 	function bit_and($mask) {
+		$type = Condition::determine_type($mask);
+		if ($type != Condition::T_INT)
+			throw new InvalidArgumentException("Non-integral value passed to bit_and()");
+
+		$this->assert_inhabits(Condition::T_INT);
+
+		if (!is_a($mask, "recipe\\orm\\condition\\Condition"))
+			$mask = new Condition($mask, Condition::T_INT, Condition::K_CONST);
+
+		return new Condition(null, Condition::T_INT, Condition::K_AND,
+		                     [$this, $mask]);
 	}
 
 	function get_type() {
