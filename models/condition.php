@@ -130,7 +130,7 @@ function not($condition) {
  */
 function guard_junction($conditions, $func_name) {
 	foreach ($conditions as $condition) {
-		if (!is_a($condition, "recipe\\orm\\condition\\Condition"))
+		if (!Condition::is_instance($condition))
 			throw new orm\InvalidArgumentException("Non-condition passed to $func_name()");
 
 		switch ($condition->get_type()) {
@@ -438,7 +438,7 @@ class Condition {
 
 		$this->assert_inhabits(Condition::T_INT);
 
-		if (!is_a($mask, "recipe\\orm\\condition\\Condition"))
+		if (!Condition::is_instance($mask))
 			$mask = new Condition($mask, Condition::T_INT, Condition::K_CONST);
 
 		return new Condition(null, Condition::T_INT, Condition::K_AND,
@@ -453,7 +453,7 @@ class Condition {
 		$type = Condition::determine_type($value);
 		$this->assert_inhabits($type);
 
-		if (!is_a($value, "recipe\\orm\\condition\\Condition")) {
+		if (!Condition::is_instance($value)) {
 			$value = new Condition($value, $type, Condition::K_CONST);
 		}
 		return new Condition(null, Condition::T_BOOL, $kind,
@@ -476,7 +476,7 @@ class Condition {
 	}
 
 	private function add_child($child) {
-		if (is_a($child, "recipe\\orm\\condition\\Condition")) {
+		if (Condition::is_instance($child)) {
 			array_push($this->children, $child);
 		} else {
 			throw new orm\InvalidArgumentException("Non-condition added as child of Condition");
@@ -499,8 +499,12 @@ class Condition {
 		throw new InvalidConditionException("Condition is not $type typed");
 	}
 
+	static function is_instance($param) {
+		return is_a($param, "recipe\\orm\\condition\\Condition");
+	}
+
 	private static function determine_type($value) {
-		if (is_a($value, "recipe\\orm\\condition\\Condition")) {
+		if (Condition::is_instance($value)) {
 			return $value->get_type();
 		} else {
 			if (orm\castable_int($value)) {
