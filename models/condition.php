@@ -449,6 +449,74 @@ class Condition {
 		return $this->type;
 	}
 
+	function __toString() {
+		return $this->string_rep(true);
+	}
+
+	private function string_rep($top_level = false) {
+		if ($top_level) {
+			$this->params = [];
+			$this->assign_params($this->params);
+		}
+
+		switch ($this->kind) {
+			case Condition::K_ALL:
+				return $this->construct_junction(" AND ");
+			case Condition::K_ANY:
+				return $this->construct_junction(" OR ");
+			case Condition::K_AND:
+				return $this->comparison_string("&");
+			case Condition::K_COL:
+				return $this->value;
+			case Condition::K_CONST:
+				return "?";
+			case Condition::K_CONTAINS:
+				return $this->comparison_string(" LIKE ");
+			case Condition::K_EQ:
+				return $this->comparison_string("<=>");
+			case Condition::K_GE:
+				return $this->comparison_string(">=");
+			case Condition::K_GT:
+				return $this->comparison_string(">");
+			case Condition::K_LE:
+				return $this->comparison_string("<=");
+			case Condition::K_LT:
+				return $this->comparison_string("<");
+			case Condition::K_IN:
+				$conditions = $this->children;
+				array_shift($conditions);
+				return "(" . $this->children[0]->string_rep() . " IN(" .
+				       Condition::implode_conditions($conditions, ",") . ")";
+			case Condition::K_NEQ:
+				return $this->comparison_string("!=");
+			case Condition::K_NOT:
+				return "(NOT " . $this->children[0]->string_rep() . ")";
+			case Condition::K_NULL:
+				return "(" . $this->children[0]->string_rep() . " IS NULL)";
+		}
+	}
+
+	private function construct_junction($separator) {
+		return "(" . Condition::implode_conditions($this->children, $separator)
+		       . ")";
+	}
+
+	private function comparison_string($operator) {
+		return "(" .  $this->children[0]->string_rep() .  $operator .
+		       $this->children[1]->string_rep() . ")";
+	}
+
+	private function assign_params(&$params) {
+		if ($this->kind == Condition::K_CONST) {
+			$params[] = $this->value;
+			return;
+		}
+
+		foreach($this->children as $child) {
+			$child->assign_params($params);
+		}
+	}
+
 	private function comparison_condition($value, $kind) {
 		$type = Condition::determine_type($value);
 		$this->assert_inhabits($type);
@@ -501,6 +569,15 @@ class Condition {
 
 	static function is_instance($param) {
 		return is_a($param, "recipe\\orm\\condition\\Condition");
+	}
+
+	private static function implode_conditions($conditions, $separator) {
+		$parts = [];
+		foreach($conditions as $condition) {
+			$parts[] = $condition->string_rep();
+		}
+
+		return "(" . implode($separator, $parts) . ")";
 	}
 
 	private static function determine_type($value) {
