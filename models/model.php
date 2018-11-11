@@ -1,5 +1,6 @@
 <?php
 namespace recipe\orm;
+use recipe\orm\condition as c;
 
 require_once F_ROOT . '/exceptions/db.php';
 require_once 'query.php';
@@ -135,7 +136,7 @@ abstract class Model {
 			throw new InvalidIdException;
 
 		$query = new Query(get_class($this), $this->table_name(),
-		                   [ "id" => $this->id ], Model::connector());
+		                   c\column("id")->eq($this->id), Model::connector());
 		$res = $query->find();
 
 		foreach (get_object_vars($res) as $key => $value) {
@@ -205,7 +206,7 @@ abstract class Model {
 			if ($has_key !== false) {
 				$association_col = $this->table_name() . "_id";
 				$query = new Query($class_name, $table_name,
-				                   [ $association_col => $this->id ],
+				                   c\column($association_col)->eq($this->id),
 				                   Model::connector());
 				return $query->limit(0)->find();
 			}
@@ -248,25 +249,22 @@ abstract class Model {
 	/**
 	 * Creates a Query for the given table, using $args for the where clause.
 	 *
-	 * @param array $args An associative array describing the conditions
-	 *                    desired, such as [ "id" => 2, "name" => "Me" ]
+	 * @param object $condition A Condition object, or null for no condition.
 	 *
 	 * @return object A query object, initialised with the arguments passed
 	 *
-	 * @throws InvalidArgumentException If args is not an array, or the called
+	 * @throws InvalidArgumentException If args is not a Condition, or the called
 	 *                                  class is Model.
 	 *
 	 * @see Query
 	 */
-	static function where($args) {
+	static function where($condition) {
 		$class_name = get_called_class();
-		if (!is_array($args))
-			throw new InvalidArgumentException("where args is not an array");
 		if ($class_name == "Model")
 			throw new InvalidArgumentException("where must be called on a subclass of Model");
 
-		return new Query($class_name, Model::databasify($class_name), $args,
-		                 Model::connector());
+		return new Query($class_name, Model::databasify($class_name),
+		                 $condition, Model::connector());
 	}
 
 	private function connection() {

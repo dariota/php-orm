@@ -1,5 +1,6 @@
 <?php
 namespace recipe\orm;
+use recipe\orm\condition as c;
 
 require_once F_ROOT . '/exceptions/db.php';
 require_once F_ROOT . '/utility/utils.php';
@@ -23,19 +24,22 @@ class Query {
 	 * @param string $class_name The name of the class to deserialise records
 	 *                           to.
 	 * @param string $table_name The name of the table to query.
-	 * @param array $args The conditions to use [ "column" => "expected value"].
+	 * @param object $args The condition to use, or null for no condition.
 	 * @param object $connector A callable, taking no arguments, returning a PDO
 	 *                          connection.
 	 *
 	 * @throws InvalidArgumentException If param types are wrong, or args
 	 *                                  array has non-string keys.
 	 */
-	function __construct($class_name, $table_name, $args, $connector) {
+	function __construct($class_name, $table_name, $condition, $connector) {
+		if ($condition && !c\Condition::is_instance($condition))
+			throw new InvalidArgumentException("Condition must be a condition object or null");
+
 		$this->class_name = $class_name;
 		$this->table = $table_name;
 		$this->connector = $connector;
-		$this->condition = Query::construct_where($args, true);
-		$this->condition_params = $args;
+		$this->condition = $condition;
+		$this->condition_params = [];
 	}
 
 	/**
@@ -69,8 +73,10 @@ class Query {
 		// mostly just wrap PDO::fetchObject with some sql generation
 		$stmt = "SELECT * FROM $this->table";
 
-		if (strlen($this->condition))
+		if ($this->condition) {
 			$stmt .= " WHERE $this->condition";
+			$this->condition_params = $this->condition->params;
+		}
 
 		if ($this->limit_count)
 			$stmt .= " LIMIT $this->limit_count";
@@ -100,21 +106,6 @@ class Query {
 
 		$this->connection = call_user_func($this->connector);
 		return $this->connection;
-	}
-
-	private static function construct_where($args, $conjuction) {
-		$where = "";
-		$first = true;
-		foreach (array_keys($args) as $key) {
-			if (!is_string($key))
-				throw new InvalidArgumentException("args keys must be strings");
-			if (!$first)
-				$where .= $conjuction ? " AND " : " OR ";
-
-			$where .= "$key=:$key";
-		}
-
-		return $where;
 	}
 
 }
