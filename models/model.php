@@ -12,12 +12,18 @@ require_once 'query.php';
  * to retrieve associated models, and a create/update method.
  */
 abstract class Model {
+	const T_BOOL = 0;
+	const T_FLOAT = 1;
+	const T_INT = 2;
+	const T_STR = 3;
+
 	static $skip_id = NULL;
 
 	private $_meta = [ "persisted" => false, "connection" => NULL ];
 	var $id;
 	var $belongs;
 	var $has;
+	var $validations;
 
 	/**
 	 * Constructs a model of the child class.
@@ -72,7 +78,8 @@ abstract class Model {
 		$table = $this->table_name();
 		$vars = get_object_vars($this);
 		// prevent metadata/association variables from being written to the DB
-		unset($vars["_meta"], $vars["has"], $vars["belongs"]);
+		unset($vars["_meta"], $vars["has"], $vars["belongs"],
+		      $vars["validations"]);
 
 		$verb = "INSERT INTO";
 		$where = "";
@@ -233,17 +240,98 @@ abstract class Model {
 	/**
 	 * Allows a model to hook in validation of its state.
 	 *
+	 * If $this->validations is set in the correct format, the default
+	 * implementation will perform validations as specified. The following are
+	 * currently supported:
+	 *
+	 * [
+	 *   "var_1" => [ "type" => Model::T_STR, "len" => 10 ],
+	 *   "var_2" => [ "type" => Model::T_INT, "max" => 10, "min" => 0 ],
+	 *   "var_3" => [ "type" => Model::T_BOOL ],
+	 *   "var_4" => [ "type" => Model::T_FLOAT, "max" => 1.0, "min" => 0.0 ],
+	 *   "var_5" => [ "exists" ]
+	 * ]
+	 *
+	 * The len check implies the string typecheck, max and min imply the float
+	 * typecheck, and the int typecheck uses castable_int, and as such strongly
+	 * types the variable to be an int.
+	 *
+	 * The max, min and len checks are all exclusive. They also assume the value
+	 * to check against is a valid numeric type.
+	 *
 	 * This will be called immediately BEFORE the pre_save() hook.
 	 * Allows a model to validate its own state, such as checking that enum
 	 * values are within permitted values, or that specific variables are in the
 	 * right range or type of values.
 	 * Validate MAY perform corrections of the model's state.
 	 *
-	 * @throws InvalidModelException If the model's state is invalid.
+	 * @throws InvalidModelException If the model's state is invalid, or the
+	 *                               $this->validations is not an array of the
+	 *                               right shape.
 	 *
 	 * @see pre_save(), save()
 	 */
 	function validate() {
+		if (!isset($this->validations))
+			return;
+		if (!is_array($this->validations))
+			throw new InvalidModelException("validations is not an array");
+
+		foreach ($this->validations as $var => $validation) {
+			if (!is_array($validation))
+				throw new InvalidModelException("$var's validations were not an array");
+
+			foreach ($validation as $kind => $allowed) {
+				if ($allowed !== "exists" && !isset($this->$var))
+					continue;
+
+				if ($kind === "type") {
+					switch ($allowed) {
+					case Model::T_BOOL:
+						if (!is_bool($this->$var))
+							throw new InvalidModelException("$var must be a boolean");
+						break;
+					case Model::T_FLOAT:
+						if (!is_numeric($this->$var))
+							throw new InvalidModelException("$var must be numeric");
+						break;
+					case Model::T_INT:
+						if (!castable_int($this->$var))
+							throw new InvalidModelException("$var must be an int");
+						break;
+					case Model::T_STR:
+						if (!is_string($this->$var))
+							throw new InvalidModelException("$var must be a string");
+						break;
+					default:
+						throw new InvalidModelException("Unknown type $allowed for $var");
+					}
+				} else if ($kind === "min") {
+					if (!is_numeric($this->$var))
+						throw new InvalidModelException("Can't check min on non-numeric $var");
+
+					if ($this->$var < $allowed)
+						throw new InvalidModelException("$var is less than min $allowed");
+				} else if ($kind === "max") {
+					if (!is_numeric($this->$var))
+						throw new InvalidModelException("Can't check max on non-numeric $var");
+
+					if ($this->$var > $allowed)
+						throw new InvalidModelException("$var is greater than max $allowed");
+				} else if ($kind === "len") {
+					if (!is_string($this->$var))
+						throw new InvalidModelException("Can't check string length on non-string $var");
+
+					if (strlen($this->$var) > $allowed)
+						throw new InvalidModelException("$var is longer than max $allowed");
+				} else if ($allowed === "exists") {
+					if (!isset($this->$var) || $this->$var === NULL)
+						throw new InvalidModelException("$var must exist");
+				} else {
+					throw new InvalidModelException("Unknown validation for $var: $kind");
+				}
+			}
+		}
 	}
 
 	/**
