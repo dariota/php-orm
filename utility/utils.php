@@ -13,4 +13,20 @@ function castable_int(&$input) {
 	}
 }
 
+function castable_bool(&$input) {
+	if (is_bool($input))
+		return true;
+
+	switch (strtolower(strval($input))) {
+	case 'true':
+		$input = true;
+		return true;
+	case 'false':
+		$input = false;
+		return true;
+	default:
+		return false;
+	}
+}
+
 ?>

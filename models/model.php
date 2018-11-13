@@ -294,7 +294,7 @@ abstract class Model {
 				if ($kind === "type") {
 					switch ($allowed) {
 					case Model::T_BOOL:
-						if (!is_bool($this->$var))
+						if (!castable_bool($this->$var))
 							throw new InvalidModelException("$var must be a boolean");
 						break;
 					case Model::T_FLOAT:
