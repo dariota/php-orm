@@ -211,6 +211,12 @@ abstract class Model {
 			}
 
 			if ($has_key !== false) {
+				// if the model isn't persisted, it doesn't have an ID to search
+				// by, but this return is done late to ensure the assocation
+				// would have been valid anyway
+				if (!$this->_meta["persisted"])
+					return [];
+
 				$association_col = $this->table_name() . "_id";
 				$query = new Query($class_name, $table_name,
 				                   c\column($association_col)->eq($this->id),
