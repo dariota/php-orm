@@ -93,6 +93,7 @@ abstract class Model {
 			// increment
 		} else if ($vars["id"])
 			throw new RecordNotPersistedException("ID provided for non-persisted record");
+		else unset($vars["id"]);
 
 		$stmt = "$verb $table SET ";
 		$first = true;
@@ -100,7 +101,7 @@ abstract class Model {
 		// TODO detect "dirtied" vars using $this->_meta and hashes of
 		// variables to do more efficient updates
 		foreach ($vars as $k => $v) {
-			if ($verb == "UPDATE" && $k == "id") continue;
+			if ($k == "id") continue;
 
 			if (!$first) $stmt .= ",";
 
