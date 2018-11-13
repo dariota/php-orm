@@ -404,8 +404,11 @@ class Condition {
 	 *                                   similar to any of the elements' types.
 	 */
 	function in($set) {
-		if (!(is_array($set) && count($set)))
-			throw new orm\InvalidArgumentException("Value passed to in() is not non-empty array");
+		if (!is_array($set))
+			throw new orm\InvalidArgumentException("Value passed to in() is not array");
+
+		if (!count($set))
+			return value(false);
 
 		$children = [$this];
 		foreach ($set as $item) {
