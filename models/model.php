@@ -288,6 +288,13 @@ abstract class Model {
 			if (!is_array($validation))
 				throw new InvalidModelException("$var's validations were not an array");
 
+			// unset empty string unless we know the var's a string
+			if (!((isset($validation["type"])
+			    && $validation["type"] === Model::T_STR)
+			    || isset($validation["len"])) && isset($this->$var)
+			    && $this->$var === "")
+				unset($this->$var);
+
 			foreach ($validation as $kind => $allowed) {
 				if ($allowed !== "exists" && !isset($this->$var))
 					continue;
