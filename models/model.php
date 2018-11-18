@@ -72,8 +72,8 @@ abstract class Model {
 	 * @throws InvalidModelException If validation fails.
 	 */
 	function save() {
-		$this->validate();
 		$this->pre_save();
+		$this->validate();
 
 		$table = $this->table_name();
 		$vars = get_object_vars($this);
