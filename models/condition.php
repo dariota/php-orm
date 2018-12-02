@@ -488,7 +488,7 @@ class Condition {
 			case Condition::K_IN:
 				$conditions = $this->children;
 				array_shift($conditions);
-				return "(" . $this->children[0]->string_rep() . " IN(" .
+				return "(" . $this->children[0]->string_rep() . " IN" .
 				       Condition::implode_conditions($conditions, ",") . ")";
 			case Condition::K_NEQ:
 				return $this->comparison_string("!=");
