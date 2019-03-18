@@ -61,6 +61,31 @@ class Query {
 	}
 
 	/**
+	 * Sets the ordering for querying. Composite columns may be used, but are
+	 * passed in as one value (e.g: "id,recipe_id"). No validation of the input
+	 * is performed other than to check it's a string.
+	 *
+	 * @param string $order_clause The column(s) to sort by.
+	 * @param bool $ascending The sort direction, default true == ascending.
+	 *
+	 * @return object $this for function chaining.
+	 *
+	 * @throws InvalidArgumentException If $order_clause is non-string or
+	 *                                  ascending is not bool.
+	 */
+	function order_by($order_clause, $ascending = true) {
+		if (!is_string($order_clause))
+			throw new InvalidArgumentException("order_clause must be string");
+		if (!castable_bool($ascending))
+			throw new InvalidArgumentException("ascending must be bool");
+
+		$this->order_clause = $order_clause;
+		$this->ascending = $ascending;
+
+		return $this;
+	}
+
+	/**
 	 * Retrieves the first $this->limit records matching the query described.
 	 *
 	 * @return mixed The retrieved record or array of records depending on
@@ -76,6 +101,12 @@ class Query {
 		if ($this->condition) {
 			$stmt .= " WHERE $this->condition";
 			$this->condition_params = $this->condition->params;
+		}
+
+		if ($this->order_clause) {
+			$stmt .= " ORDER BY $this->order_clause";
+			if (!$this->ascending)
+				$stmt .= " DESC";
 		}
 
 		if ($this->limit_count)
